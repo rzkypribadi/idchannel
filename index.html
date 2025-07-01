@@ -1,1 +1,2616 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manajer Channel Premium</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #4361ee;
+            --primary-dark: #3a56d4;
+            --primary-light: #4cc9f0;
+            --secondary: #3f37c9;
+            --accent: #4895ef;
+            --danger: #f72585;
+            --success: #4cc9f0;
+            --warning: #f8961e;
+            --info: #3b82f6;
+            --dark: #1a1a2e;
+            --darker: #0f172a;
+            --light: #f8fafc;
+            --lighter: #ffffff;
+            --gray: #94a3b8;
+            --gray-dark: #64748b;
+            --border-radius: 12px;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --battery-level: 100%;
+            --battery-color: var(--success);
+        }
 
+        [data-theme="dark"] {
+            --bg: var(--darker);
+            --bg-card: #1e293b;
+            --text: var(--light);
+            --text-secondary: var(--gray);
+            --border: #334155;
+            --hover: #334155;
+            --input-bg: #1e293b;
+        }
+
+        [data-theme="light"] {
+            --bg: #f1f5f9;
+            --bg-card: var(--lighter);
+            --text: var(--dark);
+            --text-secondary: var(--gray-dark);
+            --border: #e2e8f0;
+            --hover: #f1f5f9;
+            --input-bg: var(--lighter);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            transition: var(--transition);
+            min-height: 100vh;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Animasi */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .animated {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .animated-slide {
+            animation: slideIn 0.5s ease-out;
+        }
+
+        .pulse:hover {
+            animation: pulse 1.5s infinite;
+        }
+
+        .float {
+            animation: float 3s ease-in-out infinite;
+        }
+
+        .bounce {
+            animation: bounce 2s infinite;
+        }
+
+        /* Loading spinner */
+        .loader {
+            width: 48px;
+            height: 48px;
+            border: 5px solid var(--primary);
+            border-bottom-color: transparent;
+            border-radius: 50%;
+            display: inline-block;
+            box-sizing: border-box;
+            animation: spin 1s linear infinite;
+        }
+
+        /* Mode Pemeliharaan */
+        .maintenance-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            color: white;
+            font-size: 1.5rem;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .maintenance-icon {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            color: var(--warning);
+            animation: bounce 2s infinite;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 30px;
+            position: sticky;
+            top: 0;
+            background-color: var(--bg);
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary);
+            transition: var(--transition);
+        }
+
+        .header-title:hover {
+            text-shadow: 0 0 10px rgba(67, 97, 238, 0.5);
+        }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .control-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--bg-card);
+            color: var(--text);
+            border: 1px solid var(--border);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .control-btn:hover {
+            background: var(--hover);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+
+        /* Container Login */
+        .login-container {
+            max-width: 480px;
+            margin: 60px auto;
+            background: var(--bg-card);
+            padding: 40px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-lg);
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .login-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 6px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+        }
+
+        .login-title {
+            font-size: 1.75rem;
+            margin-bottom: 30px;
+            text-align: center;
+            color: var(--primary);
+            font-weight: 700;
+        }
+
+        .login-subtitle {
+            text-align: center;
+            color: var(--text-secondary);
+            margin-bottom: 30px;
+            font-size: 0.95rem;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--text);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 14px 16px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--input-bg);
+            color: var(--text);
+            transition: var(--transition);
+            font-size: 0.95rem;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }
+
+        .input-with-icon {
+            position: relative;
+        }
+
+        .input-icon {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--gray);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 14px 24px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: var(--transition);
+            text-align: center;
+            width: 100%;
+            font-size: 1rem;
+            box-shadow: var(--shadow);
+        }
+
+        .btn:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-secondary {
+            background: var(--bg-card);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--hover);
+            color: var(--text);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .btn-success {
+            background: var(--success);
+        }
+
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        .btn-warning {
+            background: var(--warning);
+        }
+
+        .btn-warning:hover {
+            background: #d97706;
+        }
+
+        .btn-info {
+            background: var(--info);
+        }
+
+        .btn-info:hover {
+            background: #2563eb;
+        }
+
+        .btn-icon {
+            margin-right: 8px;
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            margin: 20px 0;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        .divider::before, .divider::after {
+            content: '';
+            flex: 1;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .divider::before {
+            margin-right: 10px;
+        }
+
+        .divider::after {
+            margin-left: 10px;
+        }
+
+        /* Dashboard */
+        .dashboard {
+            display: none;
+        }
+
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .dashboard-title {
+            font-size: 1.75rem;
+            color: var(--primary);
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            transition: var(--transition);
+        }
+
+        .user-avatar:hover {
+            transform: rotate(360deg);
+        }
+
+        .user-details {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .user-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .user-role {
+            background: var(--primary);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-top: 2px;
+        }
+
+        .logout-btn {
+            background: var(--danger);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .logout-btn:hover {
+            background: #dc2626;
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+
+        /* Statistik */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            transition: var(--transition);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .stat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .stat-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: var(--transition);
+        }
+
+        .stat-icon:hover {
+            transform: scale(1.1);
+        }
+
+        .stat-icon.primary {
+            background: rgba(99, 102, 241, 0.1);
+            color: var(--primary);
+        }
+
+        .stat-icon.success {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+        }
+
+        .stat-icon.warning {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--warning);
+        }
+
+        .stat-title {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+
+        .stat-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            margin: 5px 0;
+        }
+
+        /* Form Tambah Channel */
+        .add-channel-form {
+            background: var(--bg-card);
+            border-radius: var(--border-radius);
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            transition: var(--transition);
+        }
+
+        .add-channel-form:hover {
+            box-shadow: var(--shadow-md);
+        }
+
+        .form-title {
+            font-size: 1.25rem;
+            margin-bottom: 20px;
+            color: var(--primary);
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-title-icon {
+            font-size: 1.1rem;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 0.95rem;
+            display: none;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .alert-success {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid var(--success);
+            color: var(--success);
+        }
+
+        .alert-danger {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid var(--danger);
+            color: var(--danger);
+        }
+
+        .alert-warning {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid var(--warning);
+            color: var(--warning);
+        }
+
+        /* Daftar Channel */
+        .channel-list {
+            background: var(--bg-card);
+            border-radius: var(--border-radius);
+            padding: 25px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            transition: var(--transition);
+        }
+
+        .channel-list:hover {
+            box-shadow: var(--shadow-md);
+        }
+
+        .channel-list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .channel-list-title {
+            font-size: 1.25rem;
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .channel-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-sm {
+            padding: 8px 16px;
+            font-size: 0.85rem;
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+        }
+
+        .channel-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .channel-table th {
+            text-align: left;
+            padding: 12px 15px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .channel-table td {
+            padding: 15px;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.95rem;
+            transition: var(--transition);
+        }
+
+        .channel-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .channel-table tr:hover td {
+            background: var(--hover);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge-success {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+        }
+
+        .badge-warning {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--warning);
+        }
+
+        .badge-danger {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+        }
+
+        .action-btn {
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: var(--transition);
+            border: none;
+            color: white;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .view-btn {
+            background: var(--info);
+        }
+
+        .view-btn:hover {
+            background: #2563eb;
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+
+        .edit-btn {
+            background: var(--warning);
+        }
+
+        .edit-btn:hover {
+            background: #d97706;
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+
+        .delete-btn {
+            background: var(--danger);
+        }
+
+        .delete-btn:hover {
+            background: #dc2626;
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+
+        /* Alat Developer */
+        .dev-tools {
+            display: none;
+        }
+
+        .dev-tools.active {
+            display: block;
+        }
+
+        .tools-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .tool-card {
+            background: var(--bg-card);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+            border: 1px solid var(--border);
+        }
+
+        .tool-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-md);
+            border-color: var(--primary);
+        }
+
+        .tool-icon {
+            font-size: 32px;
+            margin-bottom: 15px;
+            color: var(--primary);
+            transition: var(--transition);
+        }
+
+        .tool-card:hover .tool-icon {
+            transform: scale(1.1);
+        }
+
+        .tool-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .tool-desc {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(5px);
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-card);
+            border-radius: var(--border-radius);
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid var(--border);
+            position: relative;
+            animation: modalFadeIn 0.3s ease-out;
+        }
+
+        @keyframes modalFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: var(--transition);
+        }
+
+        .close-modal:hover {
+            color: var(--danger);
+            transform: rotate(90deg);
+        }
+
+        .modal-body {
+            margin-bottom: 25px;
+            line-height: 1.6;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        /* Loading Spinner */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        .btn-with-loader {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            padding: 30px 0;
+            border-top: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        /* Tab */
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            font-weight: 500;
+            color: var(--text-secondary);
+            border-bottom: 2px solid transparent;
+            transition: var(--transition);
+        }
+
+        .tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        .tab:hover:not(.active) {
+            color: var(--text);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        /* Grafik */
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-bottom: 30px;
+        }
+
+        /* Taskbar */
+        .taskbar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: var(--bg-card);
+            border-top: 1px solid var(--border);
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .taskbar-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .taskbar-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .taskbar-time {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .battery-indicator {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .battery-icon {
+            position: relative;
+            width: 20px;
+            height: 10px;
+            border: 1px solid var(--text-secondary);
+            border-radius: 2px;
+        }
+
+        .battery-icon::before {
+            content: '';
+            position: absolute;
+            right: -3px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 2px;
+            height: 4px;
+            background: var(--text-secondary);
+            border-radius: 0 1px 1px 0;
+        }
+
+        .battery-level {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: var(--battery-level);
+            background: var(--battery-color);
+            border-radius: 1px;
+        }
+
+        .battery-percent {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        /* Pemilihan Role */
+        .role-selection {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 70vh;
+            padding: 40px 0;
+        }
+
+        .role-title {
+            font-size: 2.5rem;
+            margin-bottom: 40px;
+            text-align: center;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 800;
+        }
+
+        .role-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 25px;
+            width: 100%;
+            max-width: 1000px;
+        }
+
+        .role-card {
+            background: var(--bg-card);
+            border-radius: var(--border-radius);
+            padding: 30px 25px;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .role-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+        }
+
+        .role-card:hover {
+            transform: translateY(-8px);
+            box-shadow: var(--shadow-lg);
+            border-color: var(--primary);
+        }
+
+        .role-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+            color: var(--primary);
+        }
+
+        .role-name {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .role-desc {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-bottom: 15px;
+        }
+
+        .role-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            background: rgba(99, 102, 241, 0.1);
+            color: var(--primary);
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        /* Tombol */
+        .btn-developer {
+            background: linear-gradient(135deg, #8e2de2, #4a00e0);
+            color: white;
+        }
+
+        .btn-developer:hover {
+            background: linear-gradient(135deg, #7d26d1, #3a00c7);
+        }
+
+        .btn-vip {
+            background: linear-gradient(135deg, #f12711, #f5af19);
+            color: white;
+        }
+
+        .btn-vip:hover {
+            background: linear-gradient(135deg, #d9220f, #e5a017);
+        }
+
+        .btn-nakama {
+            background: linear-gradient(135deg, #11998e, #38ef7d);
+            color: white;
+        }
+
+        .btn-nakama:hover {
+            background: linear-gradient(135deg, #0f857b, #30d76b);
+        }
+
+        .btn-moderator {
+            background: linear-gradient(135deg, #4568dc, #b06ab3);
+            color: white;
+        }
+
+        .btn-moderator:hover {
+            background: linear-gradient(135deg, #3a5ac7, #9c5aa0);
+        }
+
+        .btn-member {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .btn-member:hover {
+            background: linear-gradient(135deg, #5a6fd1, #684391);
+        }
+
+        /* Responsif */
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .dashboard-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .user-info {
+                width: 100%;
+                justify-content: space-between;
+            }
+            
+            .login-container {
+                padding: 30px 20px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .login-container {
+                padding: 20px 15px;
+                margin: 30px auto;
+            }
+            
+            .dashboard-title {
+                font-size: 1.5rem;
+            }
+            
+            .stat-card {
+                padding: 15px;
+            }
+            
+            .stat-value {
+                font-size: 1.5rem;
+            }
+            
+            .channel-list {
+                padding: 15px;
+            }
+            
+            .channel-table th, 
+            .channel-table td {
+                padding: 10px;
+                font-size: 0.85rem;
+            }
+            
+            .action-btn {
+                padding: 5px 8px;
+                font-size: 0.75rem;
+            }
+            
+            .modal-content {
+                padding: 20px 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1 class="header-title animated">Manajer Channel Premium</h1>
+            <div class="header-controls">
+                <button class="control-btn" id="themeToggle">
+                    <i class="fas fa-moon" id="themeIcon"></i>
+                </button>
+            </div>
+        </header>
+
+        <main>
+            <div class="role-selection" id="roleSelection">
+                <h1 class="role-title animated-slide">Pilih Level Akses</h1>
+                <div class="role-grid">
+                    <div class="role-card animated-slide" data-role="developer">
+                        <div class="role-icon"><i class="fas fa-code"></i></div>
+                        <h3 class="role-name">Developer</h3>
+                        <p class="role-desc">Akses penuh dengan semua fitur sistem</p>
+                        <span class="role-badge">Limit: ∞</span>
+                    </div>
+                    <div class="role-card animated-slide" data-role="vip">
+                        <div class="role-icon"><i class="fas fa-crown"></i></div>
+                        <h3 class="role-name">VIP</h3>
+                        <p class="role-desc">Akses premium dengan fitur tambahan</p>
+                        <span class="role-badge">Limit: 10</span>
+                    </div>
+                    <div class="role-card animated-slide" data-role="nakama">
+                        <div class="role-icon"><i class="fas fa-users"></i></div>
+                        <h3 class="role-name">Nakama</h3>
+                        <p class="role-desc">Akses khusus untuk tim internal</p>
+                        <span class="role-badge">Limit: 5</span>
+                    </div>
+                    <div class="role-card animated-slide" data-role="moderator">
+                        <div class="role-icon"><i class="fas fa-shield-alt"></i></div>
+                        <h3 class="role-name">Moderator</h3>
+                        <p class="role-desc">Akses untuk moderasi channel</p>
+                        <span class="role-badge">Limit: 7</span>
+                    </div>
+                    <div class="role-card animated-slide" data-role="member">
+                        <div class="role-icon"><i class="fas fa-user"></i></div>
+                        <h3 class="role-name">Member</h3>
+                        <p class="role-desc">Akses dasar untuk manajemen channel</p>
+                        <span class="role-badge">Limit: 3</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="login-container" id="loginContainer" style="display: none;">
+                <h2 class="login-title" id="loginTitle">Login</h2>
+                <p class="login-subtitle">Masukkan kredensial untuk mengakses dashboard</p>
+                <div class="alert alert-danger" id="loginError"></div>
+                <form id="loginForm">
+                    <div class="form-group" id="usernameField">
+                        <label for="username" class="form-label">Username</label>
+                        <div class="input-with-icon">
+                            <input type="text" id="username" class="form-control" placeholder="Masukkan username" required>
+                            <i class="fas fa-user input-icon"></i>
+                        </div>
+                    </div>
+                    <div class="form-group" id="passwordField">
+                        <label for="password" class="form-label">Password</label>
+                        <div class="input-with-icon">
+                            <input type="password" id="password" class="form-control" placeholder="Masukkan password" required>
+                            <i class="fas fa-lock input-icon"></i>
+                        </div>
+                    </div>
+                    <div class="form-group" id="tokenField" style="display: none;">
+                        <label for="token" class="form-label">Token</label>
+                        <div class="input-with-icon">
+                            <input type="password" id="token" class="form-control" placeholder="Masukkan token" required>
+                            <i class="fas fa-key input-icon"></i>
+                        </div>
+                    </div>
+                    <div class="form-group" id="animeField" style="display: none;">
+                        <label for="anime" class="form-label">Anime Favorit</label>
+                        <div class="input-with-icon">
+                            <input type="text" id="anime" class="form-control" placeholder="Masukkan anime favorit" required>
+                            <i class="fas fa-film input-icon"></i>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn" id="loginBtn">
+                        <i class="fas fa-sign-in-alt btn-icon"></i> Masuk
+                    </button>
+                    <div class="divider">atau</div>
+                    <button type="button" class="btn btn-secondary" id="backToRoles">
+                        <i class="fas fa-arrow-left btn-icon"></i> Kembali
+                    </button>
+                </form>
+            </div>
+
+            <div class="dashboard" id="dashboard">
+                <div class="dashboard-header">
+                    <h2 class="dashboard-title">
+                        <i class="fas fa-tachometer-alt"></i> Dashboard
+                    </h2>
+                    <div class="user-info">
+                        <div class="user-avatar" id="userAvatar">DEV</div>
+                        <div class="user-details">
+                            <div class="user-name" id="userName">Developer</div>
+                            <div class="user-role" id="userRoleBadge">Developer</div>
+                        </div>
+                        <button class="logout-btn" id="logoutBtn">
+                            <i class="fas fa-sign-out-alt"></i> Keluar
+                        </button>
+                    </div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card animated-slide">
+                        <div class="stat-header">
+                            <div>
+                                <div class="stat-title">Total Channel</div>
+                                <div class="stat-value" id="totalChannels">0</div>
+                            </div>
+                            <div class="stat-icon primary">
+                                <i class="fas fa-broadcast-tower"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="stat-card animated-slide">
+                        <div class="stat-header">
+                            <div>
+                                <div class="stat-title">Role Anda</div>
+                                <div class="stat-value" id="userRole">Developer</div>
+                            </div>
+                            <div class="stat-icon success">
+                                <i class="fas fa-user-tag"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="stat-card animated-slide">
+                        <div class="stat-header">
+                            <div>
+                                <div class="stat-title">Maks Channel</div>
+                                <div class="stat-value" id="maxChannels">∞</div>
+                            </div>
+                            <div class="stat-icon warning">
+                                <i class="fas fa-chart-line"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="add-channel-form animated-slide">
+                    <h3 class="form-title">
+                        <i class="fas fa-plus-circle form-title-icon"></i> Tambah Channel Baru
+                    </h3>
+                    <div class="alert alert-success" id="addSuccess"></div>
+                    <div class="alert alert-danger" id="addError"></div>
+                    <form id="addChannelForm">
+                        <div class="form-group">
+                            <label for="channelId" class="form-label">ID Channel</label>
+                            <input type="text" id="channelId" class="form-control" placeholder="Contoh: 120363399559086965@newsletter" required>
+                        </div>
+                        <button type="submit" class="btn btn-success" id="addChannelBtn">
+                            <i class="fas fa-plus-circle btn-icon"></i> Tambah
+                        </button>
+                    </form>
+                </div>
+
+                <div class="channel-list animated-slide">
+                    <div class="channel-list-header">
+                        <h3 class="channel-list-title">
+                            <i class="fas fa-list-ul"></i> Channel Anda
+                        </h3>
+                        <div class="channel-actions" id="channelActions">
+                            <button class="btn btn-danger btn-sm" id="deleteAllBtn">
+                                <i class="fas fa-trash-alt btn-icon"></i> Hapus Semua
+                            </button>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="channel-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>ID Channel</th>
+                                    <th>Tanggal Ditambahkan</th>
+                                    <th>Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="channelTableBody">
+                                <!-- Daftar channel akan muncul di sini -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Alat Developer -->
+                <div class="dev-tools" id="devTools">
+                    <div class="tabs">
+                        <div class="tab active" data-tab="allChannels">Semua Channel</div>
+                        <div class="tab" data-tab="userList">Daftar Pengguna</div>
+                        <div class="tab" data-tab="system">Pengaturan Sistem</div>
+                        <div class="tab" data-tab="tools">Alat Developer</div>
+                    </div>
+
+                    <div class="tab-content active" id="allChannelsTab">
+                        <h3 class="form-title">
+                            <i class="fas fa-list form-title-icon"></i> Semua Channel
+                        </h3>
+                        <div class="table-responsive">
+                            <table class="channel-table">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>ID Channel</th>
+                                        <th>Pengguna</th>
+                                        <th>Role</th>
+                                        <th>Tanggal Ditambahkan</th>
+                                        <th>Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="allChannelsTable">
+                                    <!-- Semua channel akan muncul di sini -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="tab-content" id="userListTab">
+                        <h3 class="form-title">
+                            <i class="fas fa-users form-title-icon"></i> Daftar Pengguna
+                        </h3>
+                        <div class="table-responsive">
+                            <table class="channel-table">
+                                <thead>
+                                    <tr>
+                                        <th>Username</th>
+                                        <th>Role</th>
+                                        <th>Jumlah Channel</th>
+                                        <th>Terakhir Aktif</th>
+                                        <th>Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="userListTable">
+                                    <!-- Daftar pengguna akan muncul di sini -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="tab-content" id="systemTab">
+                        <h3 class="form-title">
+                            <i class="fas fa-cog form-title-icon"></i> Pengaturan Sistem
+                        </h3>
+                        <div class="form-group">
+                            <label class="form-label">Mode Pemeliharaan</label>
+                            <div>
+                                <label class="switch">
+                                    <input type="checkbox" id="maintenanceMode">
+                                    <span class="slider round"></span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="maxMemberChannels" class="form-label">Limit Channel Member</label>
+                            <input type="number" id="maxMemberChannels" class="form-control" value="3" min="1">
+                        </div>
+                        <div class="form-group">
+                            <label for="maxVipChannels" class="form-label">Limit Channel VIP</label>
+                            <input type="number" id="maxVipChannels" class="form-control" value="10" min="1">
+                        </div>
+                        <div class="form-group">
+                            <label for="maxNakamaChannels" class="form-label">Limit Channel Nakama</label>
+                            <input type="number" id="maxNakamaChannels" class="form-control" value="5" min="1">
+                        </div>
+                        <div class="form-group">
+                            <label for="maxModeratorChannels" class="form-label">Limit Channel Moderator</label>
+                            <input type="number" id="maxModeratorChannels" class="form-control" value="7" min="1">
+                        </div>
+                        <button class="btn btn-primary" id="saveLimitsBtn">
+                            <i class="fas fa-save btn-icon"></i> Simpan Pengaturan
+                        </button>
+                    </div>
+
+                    <div class="tab-content" id="toolsTab">
+                        <h3 class="form-title">
+                            <i class="fas fa-tools form-title-icon"></i> Alat Developer
+                        </h3>
+                        <div class="tools-grid">
+                            <div class="tool-card" id="deleteAllChannelsTool">
+                                <div class="tool-icon"><i class="fas fa-trash-alt"></i></div>
+                                <h4 class="tool-title">Hapus Semua Channel</h4>
+                                <p class="tool-desc">Hapus semua channel dari semua pengguna</p>
+                            </div>
+                            <div class="tool-card" id="deleteAllUsersTool">
+                                <div class="tool-icon"><i class="fas fa-user-slash"></i></div>
+                                <h4 class="tool-title">Hapus Semua Pengguna</h4>
+                                <p class="tool-desc">Hapus semua pengguna kecuali developer</p>
+                            </div>
+                            <div class="tool-card" id="resetSystemTool">
+                                <div class="tool-icon"><i class="fas fa-redo"></i></div>
+                                <h4 class="tool-title">Reset Sistem</h4>
+                                <p class="tool-desc">Reset semua data ke pengaturan awal</p>
+                            </div>
+                            <div class="tool-card" id="exportDataTool">
+                                <div class="tool-icon"><i class="fas fa-file-export"></i></div>
+                                <h4 class="tool-title">Ekspor Data</h4>
+                                <p class="tool-desc">Ekspor semua data ke file JSON</p>
+                            </div>
+                            <div class="tool-card" id="importDataTool">
+                                <div class="tool-icon"><i class="fas fa-file-import"></i></div>
+                                <h4 class="tool-title">Impor Data</h4>
+                                <p class="tool-desc">Impor data dari file JSON</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <div class="taskbar">
+            <div class="taskbar-left">
+                <div class="battery-indicator">
+                    <div class="battery-icon">
+                        <div class="battery-level"></div>
+                    </div>
+                    <span class="battery-percent" id="batteryPercent">100%</span>
+                </div>
+            </div>
+            <div class="taskbar-right">
+                <div class="taskbar-time" id="currentTime"></div>
+            </div>
+        </div>
+
+        <footer class="footer">
+            <p>Manajer Channel Premium &copy; 2023 | Versi 2.0</p>
+        </footer>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal" id="deleteModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Hapus Channel</h3>
+                <button class="close-modal" id="closeDeleteModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Apakah Anda yakin ingin menghapus channel ini?</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelDelete">Batal</button>
+                <button class="btn btn-danger" id="confirmDelete">
+                    <i class="fas fa-trash btn-icon"></i> Hapus
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="deleteAllModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Hapus Semua Channel</h3>
+                <button class="close-modal" id="closeDeleteAllModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Ini akan menghapus SEMUA channel Anda. Lanjutkan?</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelDeleteAll">Batal</button>
+                <button class="btn btn-danger" id="confirmDeleteAll">
+                    <i class="fas fa-trash-alt btn-icon"></i> Hapus Semua
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Konfigurasi Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyAShiEOgNRJjPEvZpS9Qmz-IYS6W7-RluI",
+            authDomain: "idchannel-60d7c.firebaseapp.com",
+            databaseURL: "https://idchannel-60d7c-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "idchannel-60d7c",
+            storageBucket: "idchannel-60d7c.appspot.com",
+            messagingSenderId: "765199599169",
+            appId: "1:765199599169:web:cad7f0f6535a4457fc28c0",
+            measurementId: "G-95FRGNG1G4"
+        };
+
+        // Inisialisasi Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        // Variabel Global
+        let currentUser = null;
+        let currentRole = null;
+        let userChannels = [];
+        let allChannelsData = [];
+        let allUsersData = [];
+        let channelToDelete = null;
+        let isMaintenanceMode = false;
+        let roleLimits = {
+            developer: Infinity,
+            vip: 10,
+            nakama: 5,
+            moderator: 7,
+            member: 3
+        };
+
+        // Kredensial Login
+        const credentials = {
+            developer: {
+                username: "admin",
+                password: "admin123",
+                anime: "naruto"
+            },
+            vip: {
+                username: "vip",
+                password: "vip123"
+            },
+            nakama: {
+                username: "nakama",
+                password: "nakama123"
+            },
+            moderator: {
+                username: "moderator",
+                password: "mod123"
+            },
+            member: {
+                token: "member123"
+            }
+        };
+
+        // Inisialisasi Aplikasi
+        function initApp() {
+            loadTheme();
+            setupEventListeners();
+            updateClock();
+            setInterval(updateClock, 1000);
+            updateBattery();
+            setInterval(updateBattery, 60000);
+            
+            // Cek mode pemeliharaan
+            database.ref('settings/maintenanceMode').on('value', (snapshot) => {
+                isMaintenanceMode = snapshot.exists() ? snapshot.val() : false;
+                
+                // Update toggle mode pemeliharaan untuk developer
+                if (currentRole === 'developer') {
+                    maintenanceMode.checked = isMaintenanceMode;
+                }
+                
+                // Tampilkan layar pemeliharaan jika aktif dan user bukan developer
+                if (isMaintenanceMode && currentRole && currentRole !== 'developer') {
+                    showMaintenanceMode();
+                }
+            });
+            
+            // Load limit role
+            database.ref('settings/roleLimits').on('value', (snapshot) => {
+                if (snapshot.exists()) {
+                    roleLimits = snapshot.val();
+                    updateRoleLimitsUI();
+                }
+            });
+        }
+
+        // Tampilkan mode pemeliharaan
+        function showMaintenanceMode() {
+            // Hanya tampilkan jika belum ada
+            if (document.querySelector('.maintenance-overlay')) return;
+            
+            const overlay = document.createElement('div');
+            overlay.className = 'maintenance-overlay';
+            overlay.innerHTML = `
+                <div class="maintenance-icon">
+                    <i class="fas fa-tools"></i>
+                </div>
+                <h2>Mode Pemeliharaan Aktif</h2>
+                <p>Sistem sedang dalam pemeliharaan. Harap tunggu hingga proses selesai.</p>
+                <p>Hanya developer yang dapat mengakses sistem saat ini.</p>
+                <button class="btn btn-warning" id="refreshBtn" style="margin-top: 20px;">
+                    <i class="fas fa-sync-alt btn-icon"></i> Coba Lagi
+                </button>
+            `;
+            
+            document.body.appendChild(overlay);
+            
+            // Tambahkan event listener untuk tombol refresh
+            document.getElementById('refreshBtn').addEventListener('click', () => {
+                location.reload();
+            });
+        }
+
+        // Setup Event Listeners
+        function setupEventListeners() {
+            // Pemilihan role
+            document.querySelectorAll('.role-card').forEach(card => {
+                card.addEventListener('click', () => selectRole(card.dataset.role));
+            });
+
+            // Form login
+            loginForm.addEventListener('submit', handleLogin);
+            backToRoles.addEventListener('click', () => {
+                loginContainer.style.display = 'none';
+                roleSelection.style.display = 'flex';
+                resetLoginForm();
+            });
+
+            // Logout
+            logoutBtn.addEventListener('click', logout);
+
+            // Form tambah channel
+            addChannelForm.addEventListener('submit', addChannel);
+
+            // Toggle tema
+            themeToggle.addEventListener('click', toggleTheme);
+
+            // Modal
+            closeDeleteModal.addEventListener('click', () => deleteModal.classList.remove('active'));
+            cancelDelete.addEventListener('click', () => deleteModal.classList.remove('active'));
+            confirmDelete.addEventListener('click', deleteChannel);
+            
+            closeDeleteAllModal.addEventListener('click', () => deleteAllModal.classList.remove('active'));
+            cancelDeleteAll.addEventListener('click', () => deleteAllModal.classList.remove('active'));
+            confirmDeleteAll.addEventListener('click', deleteAllChannels);
+            
+            deleteAllBtn.addEventListener('click', () => {
+                deleteAllModal.classList.add('active');
+            });
+
+            // Tab
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tabContents.forEach(c => c.classList.remove('active'));
+                    
+                    tab.classList.add('active');
+                    document.getElementById(`${tab.dataset.tab}Tab`).classList.add('active');
+                    
+                    if (tab.dataset.tab === 'allChannels') {
+                        loadAllChannels();
+                    } else if (tab.dataset.tab === 'userList') {
+                        loadAllUsers();
+                    }
+                });
+            });
+
+            // Alat Developer
+            deleteAllChannelsTool.addEventListener('click', () => {
+                if (confirm('Apakah Anda yakin ingin menghapus semua channel?')) {
+                    deleteAllChannelsSystem();
+                }
+            });
+
+            deleteAllUsersTool.addEventListener('click', () => {
+                if (confirm('Apakah Anda yakin ingin menghapus semua pengguna non-developer?')) {
+                    deleteAllUsers();
+                }
+            });
+
+            resetSystemTool.addEventListener('click', () => {
+                if (confirm('Apakah Anda yakin ingin mereset seluruh sistem?')) {
+                    resetSystem();
+                }
+            });
+
+            exportDataTool.addEventListener('click', exportData);
+            importDataTool.addEventListener('click', importData);
+            
+            // Toggle mode pemeliharaan
+            maintenanceMode.addEventListener('change', toggleMaintenanceMode);
+            
+            // Simpan limit role
+            saveLimitsBtn.addEventListener('click', saveRoleLimits);
+        }
+
+        // Pilih Role
+        function selectRole(role) {
+            currentRole = role;
+            
+            if (role === 'developer') {
+                loginTitle.textContent = 'Login Developer';
+                usernameField.style.display = 'block';
+                passwordField.style.display = 'block';
+                tokenField.style.display = 'none';
+                animeField.style.display = 'block';
+            } else if (role === 'member') {
+                loginTitle.textContent = 'Masukkan Token';
+                usernameField.style.display = 'none';
+                passwordField.style.display = 'none';
+                tokenField.style.display = 'block';
+                animeField.style.display = 'none';
+            } else {
+                loginTitle.textContent = 'Login ' + role.charAt(0).toUpperCase() + role.slice(1);
+                usernameField.style.display = 'block';
+                passwordField.style.display = 'block';
+                tokenField.style.display = 'none';
+                animeField.style.display = 'none';
+            }
+            
+            roleSelection.style.display = 'none';
+            loginContainer.style.display = 'block';
+            loginError.style.display = 'none';
+            resetLoginForm();
+        }
+
+        // Reset form login
+        function resetLoginForm() {
+            loginForm.reset();
+            loginBtn.disabled = false;
+            loginBtn.innerHTML = '<i class="fas fa-sign-in-alt btn-icon"></i> Masuk';
+        }
+
+        // Handle login
+        function handleLogin(e) {
+            e.preventDefault();
+            
+            let isValid = false;
+            let errorMessage = 'Kredensial tidak valid';
+            
+            if (currentRole === 'member') {
+                const token = tokenInput.value.trim();
+                if (!token) {
+                    errorMessage = 'Token tidak boleh kosong';
+                } else {
+                    isValid = token === credentials.member.token;
+                    if (!isValid) {
+                        errorMessage = 'Token salah';
+                    }
+                }
+            } else {
+                const username = usernameInput.value.trim();
+                const password = passwordInput.value.trim();
+                const anime = animeInput ? animeInput.value.trim() : '';
+                
+                if (!username || !password) {
+                    errorMessage = 'Username dan password tidak boleh kosong';
+                } else {
+                    if (currentRole === 'developer') {
+                        isValid = username === credentials.developer.username && 
+                                  password === credentials.developer.password && 
+                                  anime === credentials.developer.anime;
+                        if (!isValid) {
+                            errorMessage = 'Kombinasi username, password, atau anime favorit salah';
+                        }
+                    } else if (currentRole === 'vip') {
+                        isValid = username === credentials.vip.username && 
+                                  password === credentials.vip.password;
+                    } else if (currentRole === 'nakama') {
+                        isValid = username === credentials.nakama.username && 
+                                  password === credentials.nakama.password;
+                    } else if (currentRole === 'moderator') {
+                        isValid = username === credentials.moderator.username && 
+                                  password === credentials.moderator.password;
+                    }
+                }
+            }
+            
+            if (isValid) {
+                loginSuccess();
+            } else {
+                loginError.textContent = errorMessage;
+                loginError.style.display = 'block';
+                
+                // Animasi error
+                loginForm.classList.add('shake');
+                setTimeout(() => {
+                    loginForm.classList.remove('shake');
+                }, 500);
+            }
+        }
+
+        // Login berhasil
+        function loginSuccess() {
+            // Generate ID user unik
+            const timestamp = Date.now();
+            if (currentRole === 'member') {
+                currentUser = `member_${timestamp}`;
+            } else {
+                currentUser = `${currentRole}_${timestamp}`;
+            }
+            
+            // Reset form login
+            resetLoginForm();
+            loginContainer.style.display = 'none';
+            
+            // Inisialisasi dashboard
+            initDashboard();
+            
+            // Buat record user di database jika belum ada
+            database.ref(`users/${currentUser}`).once('value').then(snapshot => {
+                if (!snapshot.exists()) {
+                    database.ref(`users/${currentUser}`).set({
+                        role: currentRole,
+                        lastActive: new Date().toISOString(),
+                        createdAt: new Date().toISOString()
+                    });
+                }
+            });
+        }
+
+        // Inisialisasi Dashboard
+        function initDashboard() {
+            // Set tampilan user
+            const roleInitials = {
+                developer: 'DEV',
+                vip: 'VIP',
+                nakama: 'NKM',
+                moderator: 'MOD',
+                member: 'MEM'
+            };
+            
+            userAvatar.textContent = roleInitials[currentRole] || 'USR';
+            
+            const roleNames = {
+                developer: 'Developer',
+                vip: 'VIP Member',
+                nakama: 'Nakama',
+                moderator: 'Moderator',
+                member: 'Member'
+            };
+            
+            userName.textContent = currentRole === 'member' ? 'Member' : currentRole.charAt(0).toUpperCase() + currentRole.slice(1);
+            
+            // Set tampilan role user
+            userRoleBadge.textContent = roleNames[currentRole] || 'User';
+            userRole.textContent = roleNames[currentRole] || 'User';
+            
+            // Set maksimum channel berdasarkan role
+            updateMaxChannelsDisplay();
+            
+            // Tampilkan alat developer jika role adalah developer
+            if (currentRole === 'developer') {
+                devTools.classList.add('active');
+                loadAllChannels();
+                loadAllUsers();
+            } else {
+                devTools.classList.remove('active');
+                // Cek jika mode pemeliharaan aktif untuk non-developer
+                if (isMaintenanceMode) {
+                    showMaintenanceMode();
+                }
+            }
+            
+            // Load channel user
+            loadUserChannels();
+            
+            // Tampilkan dashboard
+            roleSelection.style.display = 'none';
+            loginContainer.style.display = 'none';
+            dashboard.style.display = 'block';
+        }
+
+        // Update tampilan maksimum channel
+        function updateMaxChannelsDisplay() {
+            const maxAllowed = roleLimits[currentRole] || 3;
+            maxChannels.textContent = maxAllowed === Infinity ? '∞' : maxAllowed;
+        }
+
+        // Update UI limit role di alat developer
+        function updateRoleLimitsUI() {
+            maxMemberChannels.value = roleLimits.member;
+            maxVipChannels.value = roleLimits.vip;
+            maxNakamaChannels.value = roleLimits.nakama;
+            maxModeratorChannels.value = roleLimits.moderator;
+        }
+
+        // Simpan limit role
+        function saveRoleLimits() {
+            const newLimits = {
+                member: parseInt(maxMemberChannels.value) || 3,
+                vip: parseInt(maxVipChannels.value) || 10,
+                nakama: parseInt(maxNakamaChannels.value) || 5,
+                moderator: parseInt(maxModeratorChannels.value) || 7,
+                developer: Infinity
+            };
+            
+            saveLimitsBtn.disabled = true;
+            saveLimitsBtn.innerHTML = '<i class="fas fa-spinner fa-spin btn-icon"></i> Menyimpan...';
+            
+            database.ref('settings/roleLimits').set(newLimits)
+                .then(() => {
+                    roleLimits = newLimits;
+                    updateMaxChannelsDisplay();
+                    showSuccess('Limit channel berhasil disimpan!');
+                    saveLimitsBtn.disabled = false;
+                    saveLimitsBtn.innerHTML = '<i class="fas fa-save btn-icon"></i> Simpan Pengaturan';
+                })
+                .catch(error => {
+                    showError('Gagal menyimpan limit: ' + error.message);
+                    saveLimitsBtn.disabled = false;
+                    saveLimitsBtn.innerHTML = '<i class="fas fa-save btn-icon"></i> Simpan Pengaturan';
+                });
+        }
+
+        // Toggle mode pemeliharaan (hanya developer)
+        function toggleMaintenanceMode() {
+            const newMode = maintenanceMode.checked;
+            
+            database.ref('settings/maintenanceMode').set(newMode)
+                .then(() => {
+                    isMaintenanceMode = newMode;
+                    showSuccess(`Mode pemeliharaan ${newMode ? 'diaktifkan' : 'dinonaktifkan'}`);
+                })
+                .catch(error => {
+                    showError('Gagal mengubah mode pemeliharaan: ' + error.message);
+                    maintenanceMode.checked = !newMode;
+                });
+        }
+
+        // Load channel user dari Firebase
+        function loadUserChannels() {
+            const channelsRef = database.ref(`users/${currentUser}/channels`);
+            
+            channelsRef.on('value', (snapshot) => {
+                userChannels = [];
+                channelTableBody.innerHTML = '';
+                
+                if (snapshot.exists()) {
+                    const channelsData = snapshot.val();
+                    let total = 0;
+                    
+                    for (const key in channelsData) {
+                        userChannels.push({
+                            id: key,
+                            channelId: channelsData[key].channelId,
+                            addedDate: channelsData[key].addedDate
+                        });
+                        total++;
+                    }
+                    
+                    // Update tampilan total channel
+                    totalChannels.textContent = total;
+                    
+                    // Render channel di tabel
+                    renderChannelsTable();
+                } else {
+                    totalChannels.textContent = '0';
+                    channelTableBody.innerHTML = '<tr><td colspan="4" style="text-align: center;">Belum ada channel</td></tr>';
+                }
+            });
+        }
+
+        // Load semua channel dari semua user (developer only)
+        function loadAllChannels() {
+            const allChannelsRef = database.ref('users');
+            
+            allChannelsRef.on('value', (snapshot) => {
+                allChannelsData = [];
+                allChannelsTable.innerHTML = '';
+                
+                if (snapshot.exists()) {
+                    const usersData = snapshot.val();
+                    let channelCount = 0;
+                    
+                    for (const userId in usersData) {
+                        if (usersData[userId].channels) {
+                            for (const channelId in usersData[userId].channels) {
+                                allChannelsData.push({
+                                    userId: userId,
+                                    channelId: usersData[userId].channels[channelId].channelId,
+                                    addedDate: usersData[userId].channels[channelId].addedDate,
+                                    role: getRoleFromUserId(userId)
+                                });
+                                channelCount++;
+                            }
+                        }
+                    }
+                    
+                    // Render semua channel di tabel
+                    renderAllChannelsTable();
+                } else {
+                    allChannelsTable.innerHTML = '<tr><td colspan="6" style="text-align: center;">Tidak ada channel</td></tr>';
+                }
+            });
+        }
+
+        // Dapatkan role dari ID user
+        function getRoleFromUserId(userId) {
+            if (userId.includes('developer')) return 'developer';
+            if (userId.includes('vip')) return 'vip';
+            if (userId.includes('nakama')) return 'nakama';
+            if (userId.includes('moderator')) return 'moderator';
+            if (userId.includes('member')) return 'member';
+            return 'unknown';
+        }
+
+        // Load semua user (developer only)
+        function loadAllUsers() {
+            const usersRef = database.ref('users');
+            
+            usersRef.on('value', (snapshot) => {
+                allUsersData = [];
+                userListTable.innerHTML = '';
+                
+                if (snapshot.exists()) {
+                    const usersData = snapshot.val();
+                    
+                    for (const userId in usersData) {
+                        const channelCount = usersData[userId].channels ? Object.keys(usersData[userId].channels).length : 0;
+                        const lastActive = usersData[userId].lastActive || 'Tidak diketahui';
+                        const role = getRoleFromUserId(userId);
+                        
+                        allUsersData.push({
+                            userId: userId,
+                            role: role,
+                            channelCount: channelCount,
+                            lastActive: lastActive
+                        });
+                    }
+                    
+                    // Render semua user di tabel
+                    renderAllUsersTable();
+                } else {
+                    userListTable.innerHTML = '<tr><td colspan="5" style="text-align: center;">Tidak ada pengguna</td></tr>';
+                }
+            });
+        }
+
+        // Render channel di tabel
+        function renderChannelsTable() {
+            channelTableBody.innerHTML = '';
+            
+            if (userChannels.length === 0) {
+                channelTableBody.innerHTML = '<tr><td colspan="4" style="text-align: center;">Belum ada channel</td></tr>';
+                return;
+            }
+            
+            userChannels.forEach((channel, index) => {
+                const row = document.createElement('tr');
+                
+                row.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${channel.channelId}</td>
+                    <td>${formatDate(channel.addedDate)}</td>
+                    <td>
+                        <button class="action-btn delete-btn" data-id="${channel.id}">
+                            <i class="fas fa-trash"></i> Hapus
+                        </button>
+                    </td>
+                `;
+                
+                channelTableBody.appendChild(row);
+            });
+            
+            // Tambahkan event listener ke tombol hapus
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    channelToDelete = e.target.closest('button').dataset.id;
+                    deleteModal.classList.add('active');
+                });
+            });
+        }
+
+        // Render semua channel di tabel (developer only)
+        function renderAllChannelsTable() {
+            allChannelsTable.innerHTML = '';
+            
+            if (allChannelsData.length === 0) {
+                allChannelsTable.innerHTML = '<tr><td colspan="6" style="text-align: center;">Tidak ada channel</td></tr>';
+                return;
+            }
+            
+            allChannelsData.forEach((channel, index) => {
+                const row = document.createElement('tr');
+                
+                row.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${channel.channelId}</td>
+                    <td>${channel.userId}</td>
+                    <td>${channel.role}</td>
+                    <td>${formatDate(channel.addedDate)}</td>
+                    <td>
+                        <button class="action-btn delete-btn" data-userid="${channel.userId}" data-channelid="${channel.channelId}">
+                            <i class="fas fa-trash"></i> Hapus
+                        </button>
+                    </td>
+                `;
+                
+                allChannelsTable.appendChild(row);
+            });
+            
+            // Tambahkan event listener ke tombol hapus
+            document.querySelectorAll('#allChannelsTable .delete-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const userId = e.target.closest('button').dataset.userid;
+                    const channelId = e.target.closest('button').dataset.channelid;
+                    deleteChannelById(userId, channelId);
+                });
+            });
+        }
+
+        // Render semua user di tabel (developer only)
+        function renderAllUsersTable() {
+            userListTable.innerHTML = '';
+            
+            if (allUsersData.length === 0) {
+                userListTable.innerHTML = '<tr><td colspan="5" style="text-align: center;">Tidak ada pengguna</td></tr>';
+                return;
+            }
+            
+            allUsersData.forEach((user, index) => {
+                const row = document.createElement('tr');
+                
+                row.innerHTML = `
+                    <td>${user.userId}</td>
+                    <td>${user.role}</td>
+                    <td>${user.channelCount}</td>
+                    <td>${formatDate(user.lastActive)}</td>
+                    <td>
+                        <button class="action-btn delete-btn" data-userid="${user.userId}">
+                            <i class="fas fa-trash"></i> Hapus
+                        </button>
+                    </td>
+                `;
+                
+                userListTable.appendChild(row);
+            });
+            
+            // Tambahkan event listener ke tombol hapus
+            document.querySelectorAll('#userListTable .delete-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const userId = e.target.closest('button').dataset.userid;
+                    deleteUser(userId);
+                });
+            });
+        }
+
+        // Tambah channel baru
+        function addChannel(e) {
+            e.preventDefault();
+            
+            if (isMaintenanceMode && currentRole !== 'developer') {
+                showError('Sistem sedang dalam pemeliharaan. Tidak dapat menambahkan channel.');
+                return;
+            }
+            
+            const newChannelId = channelId.value.trim();
+            
+            // Validasi format ID Channel (120xxx@newsletter)
+            if (!newChannelId.match(/^120\d+@newsletter$/)) {
+                showError('Format ID Channel tidak valid. Harus 120xxx@newsletter');
+                return;
+            }
+            
+            // Cek jika channel sudah ada
+            if (userChannels.some(channel => channel.channelId === newChannelId)) {
+                showError('Channel sudah ada');
+                return;
+            }
+            
+            // Cek maksimum channel berdasarkan role
+            const currentCount = userChannels.length;
+            const maxAllowed = roleLimits[currentRole] || 3;
+            
+            if (currentCount >= maxAllowed) {
+                showError(`Anda telah mencapai limit maksimum ${maxAllowed} channel`);
+                return;
+            }
+            
+            // Tambahkan channel ke Firebase
+            addChannelBtn.disabled = true;
+            addChannelBtn.innerHTML = '<i class="fas fa-spinner fa-spin btn-icon"></i> Menambahkan...';
+            
+            const newChannel = {
+                channelId: newChannelId,
+                addedDate: new Date().toISOString()
+            };
+            
+            const newChannelRef = database.ref(`users/${currentUser}/channels`).push();
+            newChannelRef.set(newChannel)
+                .then(() => {
+                    showSuccess('Channel berhasil ditambahkan!');
+                    channelId.value = '';
+                    addChannelBtn.disabled = false;
+                    addChannelBtn.innerHTML = '<i class="fas fa-plus-circle btn-icon"></i> Tambah';
+                    
+                    // Update waktu terakhir aktif
+                    database.ref(`users/${currentUser}/lastActive`).set(new Date().toISOString());
+                })
+                .catch(error => {
+                    showError('Gagal menambahkan channel: ' + error.message);
+                    addChannelBtn.disabled = false;
+                    addChannelBtn.innerHTML = '<i class="fas fa-plus-circle btn-icon"></i> Tambah';
+                });
+        }
+
+        // Hapus channel
+        function deleteChannel() {
+            if (!channelToDelete) return;
+            
+            confirmDelete.disabled = true;
+            confirmDelete.innerHTML = '<i class="fas fa-spinner fa-spin btn-icon"></i> Menghapus...';
+            
+            database.ref(`users/${currentUser}/channels/${channelToDelete}`).remove()
+                .then(() => {
+                    deleteModal.classList.remove('active');
+                    confirmDelete.disabled = false;
+                    confirmDelete.innerHTML = '<i class="fas fa-trash btn-icon"></i> Hapus';
+                    channelToDelete = null;
+                    showSuccess('Channel berhasil dihapus!');
+                    
+                    // Update waktu terakhir aktif
+                    database.ref(`users/${currentUser}/lastActive`).set(new Date().toISOString());
+                })
+                .catch(error => {
+                    showError('Gagal menghapus channel: ' + error.message);
+                    confirmDelete.disabled = false;
+                    confirmDelete.innerHTML = '<i class="fas fa-trash btn-icon"></i> Hapus';
+                });
+        }
+
+        // Hapus channel berdasarkan ID (developer only)
+        function deleteChannelById(userId, channelId) {
+            if (!userId || !channelId) return;
+            
+            // Cari key channel untuk channelId yang diberikan
+            database.ref(`users/${userId}/channels`).once('value')
+                .then(snapshot => {
+                    if (snapshot.exists()) {
+                        const channels = snapshot.val();
+                        let channelKey = null;
+                        
+                        for (const key in channels) {
+                            if (channels[key].channelId === channelId) {
+                                channelKey = key;
+                                break;
+                            }
+                        }
+                        
+                        if (channelKey) {
+                            return database.ref(`users/${userId}/channels/${channelKey}`).remove();
+                        }
+                    }
+                    return Promise.reject('Channel tidak ditemukan');
+                })
+                .then(() => {
+                    showSuccess('Channel berhasil dihapus!');
+                })
+                .catch(error => {
+                    showError('Gagal menghapus channel: ' + error);
+                });
+        }
+
+        // Hapus semua channel user
+        function deleteAllChannels() {
+            confirmDeleteAll.disabled = true;
+            confirmDeleteAll.innerHTML = '<i class="fas fa-spinner fa-spin btn-icon"></i> Menghapus...';
+            
+            database.ref(`users/${currentUser}/channels`).remove()
+                .then(() => {
+                    deleteAllModal.classList.remove('active');
+                    confirmDeleteAll.disabled = false;
+                    confirmDeleteAll.innerHTML = '<i class="fas fa-trash-alt btn-icon"></i> Hapus Semua';
+                    showSuccess('Semua channel berhasil dihapus!');
+                    
+                    // Update waktu terakhir aktif
+                    database.ref(`users/${currentUser}/lastActive`).set(new Date().toISOString());
+                })
+                .catch(error => {
+                    showError('Gagal menghapus channel: ' + error.message);
+                    confirmDeleteAll.disabled = false;
+                    confirmDeleteAll.innerHTML = '<i class="fas fa-trash-alt btn-icon"></i> Hapus Semua';
+                });
+        }
+
+        // Hapus semua channel dari semua user (developer only)
+        function deleteAllChannelsSystem() {
+            database.ref('users').once('value')
+                .then(snapshot => {
+                    const updates = {};
+                    if (snapshot.exists()) {
+                        const users = snapshot.val();
+                        for (const userId in users) {
+                            updates[`${userId}/channels`] = null;
+                        }
+                        return database.ref().update(updates);
+                    }
+                    return Promise.reject('Tidak ada pengguna');
+                })
+                .then(() => {
+                    showSuccess('Semua channel dari semua pengguna berhasil dihapus!');
+                })
+                .catch(error => {
+                    showError('Gagal menghapus semua channel: ' + error);
+                });
+        }
+
+        // Hapus user (developer only)
+        function deleteUser(userId) {
+            if (!userId) return;
+            
+            database.ref(`users/${userId}`).remove()
+                .then(() => {
+                    showSuccess('Pengguna berhasil dihapus!');
+                })
+                .catch(error => {
+                    showError('Gagal menghapus pengguna: ' + error.message);
+                });
+        }
+
+        // Hapus semua user kecuali developer (developer only)
+        function deleteAllUsers() {
+            database.ref('users').once('value')
+                .then(snapshot => {
+                    const updates = {};
+                    if (snapshot.exists()) {
+                        const users = snapshot.val();
+                        for (const userId in users) {
+                            if (!userId.includes('developer')) {
+                                updates[userId] = null;
+                            }
+                        }
+                        return database.ref().update(updates);
+                    }
+                    return Promise.reject('Tidak ada pengguna');
+                })
+                .then(() => {
+                    showSuccess('Semua pengguna non-developer berhasil dihapus!');
+                })
+                .catch(error => {
+                    showError('Gagal menghapus pengguna: ' + error);
+                });
+        }
+
+        // Reset sistem (developer only)
+        function resetSystem() {
+            database.ref().remove()
+                .then(() => {
+                    showSuccess('Sistem berhasil direset ke pengaturan awal!');
+                })
+                .catch(error => {
+                    showError('Gagal mereset sistem: ' + error.message);
+                });
+        }
+
+        // Ekspor data (developer only)
+        function exportData() {
+            database.ref().once('value')
+                .then(snapshot => {
+                    const data = snapshot.val();
+                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `backup-channel-manager-${new Date().toISOString()}.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    showSuccess('Data berhasil diekspor!');
+                })
+                .catch(error => {
+                    showError('Gagal mengekspor data: ' + error.message);
+                });
+        }
+
+        // Impor data (developer only)
+        function importData() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            
+            input.onchange = e => {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                
+                reader.onload = event => {
+                    try {
+                        const data = JSON.parse(event.target.result);
+                        
+                        if (confirm('Impor data akan menimpa semua data yang ada. Lanjutkan?')) {
+                            database.ref().set(data)
+                                .then(() => {
+                                    showSuccess('Data berhasil diimpor!');
+                                })
+                                .catch(error => {
+                                    showError('Gagal mengimpor data: ' + error.message);
+                                });
+                        }
+                    } catch (error) {
+                        showError('File tidak valid: ' + error.message);
+                    }
+                };
+                
+                reader.readAsText(file);
+            };
+            
+            input.click();
+        }
+
+        // Logout
+        function logout() {
+            currentUser = null;
+            currentRole = null;
+            userChannels = [];
+            
+            // Sembunyikan dashboard dan tampilkan pemilihan role
+            dashboard.style.display = 'none';
+            roleSelection.style.display = 'flex';
+            
+            // Reset form login
+            resetLoginForm();
+        }
+
+        // Tampilkan pesan sukses
+        function showSuccess(message) {
+            addSuccess.textContent = message;
+            addSuccess.style.display = 'block';
+            addError.style.display = 'none';
+            
+            setTimeout(() => {
+                addSuccess.style.display = 'none';
+            }, 3000);
+        }
+
+        // Tampilkan pesan error
+        function showError(message) {
+            addError.textContent = message;
+            addError.style.display = 'block';
+            addSuccess.style.display = 'none';
+            
+            setTimeout(() => {
+                addError.style.display = 'none';
+            }, 3000);
+        }
+
+        // Format tanggal
+        function formatDate(dateString) {
+            const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+            return new Date(dateString).toLocaleDateString('id-ID', options);
+        }
+
+        // Update jam
+        function updateClock() {
+            const now = new Date();
+            currentTime.textContent = now.toLocaleTimeString('id-ID', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            }) + ' | ' + now.toLocaleDateString('id-ID', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric'
+            });
+        }
+
+        // Update indikator baterai
+        function updateBattery() {
+            if ('getBattery' in navigator) {
+                navigator.getBattery().then(battery => {
+                    const level = Math.round(battery.level * 100);
+                    batteryPercent.textContent = `${level}%`;
+                    
+                    // Update tampilan level baterai
+                    document.documentElement.style.setProperty('--battery-level', `${level}%`);
+                    
+                    // Update warna baterai berdasarkan level
+                    if (level > 60) {
+                        document.documentElement.style.setProperty('--battery-color', 'var(--success)');
+                    } else if (level > 20) {
+                        document.documentElement.style.setProperty('--battery-color', 'var(--warning)');
+                    } else {
+                        document.documentElement.style.setProperty('--battery-color', 'var(--danger)');
+                    }
+                });
+            } else {
+                // Fallback untuk browser yang tidak mendukung Battery Status API
+                const level = Math.floor(Math.random() * 100); // Random untuk demo
+                batteryPercent.textContent = `${level}%`;
+                document.documentElement.style.setProperty('--battery-level', `${level}%`);
+                
+                if (level > 60) {
+                    document.documentElement.style.setProperty('--battery-color', 'var(--success)');
+                } else if (level > 20) {
+                    document.documentElement.style.setProperty('--battery-color', 'var(--warning)');
+                } else {
+                    document.documentElement.style.setProperty('--battery-color', 'var(--danger)');
+                }
+            }
+        }
+
+        // Manajemen tema
+        function loadTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            setTheme(savedTheme);
+        }
+
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            setTheme(newTheme);
+            localStorage.setItem('theme', newTheme);
+        }
+
+        function setTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            themeIcon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+        }
+
+        // Inisialisasi aplikasi saat DOM siap
+        window.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html>
