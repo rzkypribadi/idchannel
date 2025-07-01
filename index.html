@@ -1613,35 +1613,117 @@
         let isMaintenanceMode = false;
         let roleLimits = {
             developer: Infinity,
-            vip: 10,
-            nakama: 5,
-            moderator: 7,
-            member: 3
+            vip: 15,
+            nakama: 10,
+            moderator: 5,
+            member: 2
         };
 
-        // Kredensial Login
-        const credentials = {
-            developer: {
-                username: "admin",
-                password: "admin123",
-                anime: "naruto"
-            },
-            vip: {
-                username: "vip",
-                password: "vip123"
-            },
-            nakama: {
-                username: "nakama",
-                password: "nakama123"
-            },
-            moderator: {
-                username: "moderator",
-                password: "mod123"
-            },
-            member: {
-                token: "member123"
+        // Elemen DOM
+        const roleSelection = document.getElementById('roleSelection');
+        const loginContainer = document.getElementById('loginContainer');
+        const loginTitle = document.getElementById('loginTitle');
+        const loginError = document.getElementById('loginError');
+        const loginForm = document.getElementById('loginForm');
+        const usernameInput = document.getElementById('username');
+        const passwordInput = document.getElementById('password');
+        const tokenInput = document.getElementById('token');
+        const animeInput = document.getElementById('anime');
+        const loginBtn = document.getElementById('loginBtn');
+        const backToRoles = document.getElementById('backToRoles');
+        const dashboard = document.getElementById('dashboard');
+        const userAvatar = document.getElementById('userAvatar');
+        const userName = document.getElementById('userName');
+        const userRoleBadge = document.getElementById('userRoleBadge');
+        const userRole = document.getElementById('userRole');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const totalChannels = document.getElementById('totalChannels');
+        const maxChannels = document.getElementById('maxChannels');
+        const addChannelForm = document.getElementById('addChannelForm');
+        const channelId = document.getElementById('channelId');
+        const addChannelBtn = document.getElementById('addChannelBtn');
+        const addSuccess = document.getElementById('addSuccess');
+        const addError = document.getElementById('addError');
+        const channelTableBody = document.getElementById('channelTableBody');
+        const deleteAllBtn = document.getElementById('deleteAllBtn');
+        const deleteModal = document.getElementById('deleteModal');
+        const closeDeleteModal = document.getElementById('closeDeleteModal');
+        const cancelDelete = document.getElementById('cancelDelete');
+        const confirmDelete = document.getElementById('confirmDelete');
+        const deleteAllModal = document.getElementById('deleteAllModal');
+        const closeDeleteAllModal = document.getElementById('closeDeleteAllModal');
+        const cancelDeleteAll = document.getElementById('cancelDeleteAll');
+        const confirmDeleteAll = document.getElementById('confirmDeleteAll');
+        const devTools = document.getElementById('devTools');
+        const tabs = document.querySelectorAll('.tab');
+        const tabContents = document.querySelectorAll('.tab-content');
+        const allChannelsTable = document.getElementById('allChannelsTable');
+        const userListTable = document.getElementById('userListTable');
+        const deleteAllChannelsTool = document.getElementById('deleteAllChannelsTool');
+        const deleteAllUsersTool = document.getElementById('deleteAllUsersTool');
+        const resetSystemTool = document.getElementById('resetSystemTool');
+        const exportDataTool = document.getElementById('exportDataTool');
+        const importDataTool = document.getElementById('importDataTool');
+        const maintenanceMode = document.getElementById('maintenanceMode');
+        const maxMemberChannels = document.getElementById('maxMemberChannels');
+        const maxVipChannels = document.getElementById('maxVipChannels');
+        const maxNakamaChannels = document.getElementById('maxNakamaChannels');
+        const maxModeratorChannels = document.getElementById('maxModeratorChannels');
+        const saveLimitsBtn = document.getElementById('saveLimitsBtn');
+        const themeToggle = document.getElementById('themeToggle');
+        const themeIcon = document.getElementById('themeIcon');
+        const batteryPercent = document.getElementById('batteryPercent');
+        const currentTime = document.getElementById('currentTime');
+
+        // Blacklist system
+        let blacklist = [];
+        
+        // Load blacklist from Firebase
+        function loadBlacklist() {
+            database.ref('blacklist').on('value', (snapshot) => {
+                if (snapshot.exists()) {
+                    blacklist = snapshot.val();
+                } else {
+                    // Initialize with empty array if no blacklist exists
+                    blacklist = [];
+                    database.ref('blacklist').set(blacklist);
+                }
+            });
+        }
+
+        // Check if channel is blacklisted
+        function isBlacklisted(channelId) {
+            return blacklist.includes(channelId);
+        }
+
+        // Add channel to blacklist (developer only)
+        function addToBlacklist(channelId) {
+            if (!blacklist.includes(channelId)) {
+                blacklist.push(channelId);
+                database.ref('blacklist').set(blacklist)
+                    .then(() => {
+                        showSuccess('Channel berhasil ditambahkan ke blacklist!');
+                    })
+                    .catch(error => {
+                        showError('Gagal menambahkan ke blacklist: ' + error.message);
+                    });
             }
-        };
+        }
+
+        // Remove channel from blacklist (developer only)
+        function removeFromBlacklist(channelId) {
+            const index = blacklist.indexOf(channelId);
+            if (index > -1) {
+                blacklist.splice(index, 1);
+                database.ref('blacklist').set(blacklist)
+                    .then(() => {
+                        showSuccess('Channel berhasil dihapus dari blacklist!');
+                    })
+                    .catch(error => {
+                        showError('Gagal menghapus dari blacklist: ' + error.message);
+                    });
+            }
+        }
 
         // Inisialisasi Aplikasi
         function initApp() {
@@ -1650,6 +1732,10 @@
             updateClock();
             setInterval(updateClock, 1000);
             initBatteryMonitor();
+            loadBlacklist();
+            
+            // Load credentials from Firebase
+            loadCredentials();
             
             // Cek mode pemeliharaan
             database.ref('settings/maintenanceMode').on('value', (snapshot) => {
@@ -1671,6 +1757,38 @@
                 if (snapshot.exists()) {
                     roleLimits = snapshot.val();
                     updateRoleLimitsUI();
+                }
+            });
+        }
+
+        // Load credentials from Firebase
+        function loadCredentials() {
+            database.ref('credentials').once('value').then(snapshot => {
+                if (!snapshot.exists()) {
+                    // Initialize with default credentials if none exist
+                    const defaultCredentials = {
+                        developer: {
+                            username: "admin",
+                            password: "admin123",
+                            anime: "naruto"
+                        },
+                        vip: {
+                            username: "vip",
+                            password: "vip123"
+                        },
+                        nakama: {
+                            username: "nakama",
+                            password: "nakama123"
+                        },
+                        moderator: {
+                            username: "moderator",
+                            password: "mod123"
+                        },
+                        member: {
+                            token: "member123"
+                        }
+                    };
+                    database.ref('credentials').set(defaultCredentials);
                 }
             });
         }
@@ -1906,10 +2024,18 @@
                 if (!token) {
                     errorMessage = 'Token tidak boleh kosong';
                 } else {
-                    isValid = token === credentials.member.token;
-                    if (!isValid) {
-                        errorMessage = 'Token salah';
-                    }
+                    // Check token from Firebase
+                    database.ref('credentials/member/token').once('value').then(snapshot => {
+                        const validToken = snapshot.exists() ? snapshot.val() : 'member123';
+                        isValid = token === validToken;
+                        if (!isValid) {
+                            errorMessage = 'Token salah';
+                            showLoginError(errorMessage);
+                        } else {
+                            loginSuccess();
+                        }
+                    });
+                    return;
                 }
             } else {
                 const username = usernameInput.value.trim();
@@ -1919,38 +2045,49 @@
                 if (!username || !password) {
                     errorMessage = 'Username dan password tidak boleh kosong';
                 } else {
-                    if (currentRole === 'developer') {
-                        isValid = username === credentials.developer.username && 
-                                  password === credentials.developer.password && 
-                                  anime === credentials.developer.anime;
-                        if (!isValid) {
-                            errorMessage = 'Kombinasi username, password, atau anime favorit salah';
+                    // Check credentials from Firebase
+                    database.ref(`credentials/${currentRole}`).once('value').then(snapshot => {
+                        if (snapshot.exists()) {
+                            const roleCreds = snapshot.val();
+                            
+                            if (currentRole === 'developer') {
+                                isValid = username === roleCreds.username && 
+                                          password === roleCreds.password && 
+                                          anime === roleCreds.anime;
+                                if (!isValid) {
+                                    errorMessage = 'Kombinasi username, password, atau anime favorit salah';
+                                }
+                            } else {
+                                isValid = username === roleCreds.username && 
+                                          password === roleCreds.password;
+                            }
+                            
+                            if (isValid) {
+                                loginSuccess();
+                            } else {
+                                showLoginError(errorMessage);
+                            }
+                        } else {
+                            showLoginError('Role tidak ditemukan');
                         }
-                    } else if (currentRole === 'vip') {
-                        isValid = username === credentials.vip.username && 
-                                  password === credentials.vip.password;
-                    } else if (currentRole === 'nakama') {
-                        isValid = username === credentials.nakama.username && 
-                                  password === credentials.nakama.password;
-                    } else if (currentRole === 'moderator') {
-                        isValid = username === credentials.moderator.username && 
-                                  password === credentials.moderator.password;
-                    }
+                    });
+                    return;
                 }
             }
             
-            if (isValid) {
-                loginSuccess();
-            } else {
-                loginError.textContent = errorMessage;
-                loginError.style.display = 'block';
-                
-                // Animasi error
-                loginForm.classList.add('shake');
-                setTimeout(() => {
-                    loginForm.classList.remove('shake');
-                }, 500);
-            }
+            showLoginError(errorMessage);
+        }
+
+        // Show login error
+        function showLoginError(message) {
+            loginError.textContent = message;
+            loginError.style.display = 'block';
+            
+            // Animasi error
+            loginForm.classList.add('shake');
+            setTimeout(() => {
+                loginForm.classList.remove('shake');
+            }, 500);
         }
 
         // Login berhasil
@@ -2036,25 +2173,25 @@
 
         // Update tampilan maksimum channel
         function updateMaxChannelsDisplay() {
-            const maxAllowed = roleLimits[currentRole] || 3;
+            const maxAllowed = roleLimits[currentRole] || 2;
             maxChannels.textContent = maxAllowed === Infinity ? '∞' : maxAllowed;
         }
 
         // Update UI limit role di alat developer
         function updateRoleLimitsUI() {
-            maxMemberChannels.value = roleLimits.member;
-            maxVipChannels.value = roleLimits.vip;
-            maxNakamaChannels.value = roleLimits.nakama;
-            maxModeratorChannels.value = roleLimits.moderator;
+            maxMemberChannels.value = roleLimits.member || 2;
+            maxVipChannels.value = roleLimits.vip || 15;
+            maxNakamaChannels.value = roleLimits.nakama || 10;
+            maxModeratorChannels.value = roleLimits.moderator || 5;
         }
 
         // Simpan limit role
         function saveRoleLimits() {
             const newLimits = {
-                member: parseInt(maxMemberChannels.value) || 3,
-                vip: parseInt(maxVipChannels.value) || 10,
-                nakama: parseInt(maxNakamaChannels.value) || 5,
-                moderator: parseInt(maxModeratorChannels.value) || 7,
+                member: parseInt(maxMemberChannels.value) || 2,
+                vip: parseInt(maxVipChannels.value) || 15,
+                nakama: parseInt(maxNakamaChannels.value) || 10,
+                moderator: parseInt(maxModeratorChannels.value) || 5,
                 developer: Infinity
             };
             
@@ -2084,6 +2221,11 @@
                 .then(() => {
                     isMaintenanceMode = newMode;
                     showSuccess(`Mode pemeliharaan ${newMode ? 'diaktifkan' : 'dinonaktifkan'}`);
+                    
+                    // Jika mode pemeliharaan aktif dan user bukan developer, tampilkan layar pemeliharaan
+                    if (isMaintenanceMode && currentRole !== 'developer') {
+                        showMaintenanceMode();
+                    }
                 })
                 .catch(error => {
                     showError('Gagal mengubah mode pemeliharaan: ' + error.message);
@@ -2257,6 +2399,12 @@
                         <button class="action-btn delete-btn" data-userid="${channel.userId}" data-channelid="${channel.channelId}">
                             <i class="fas fa-trash"></i> Hapus
                         </button>
+                        ${currentRole === 'developer' ? 
+                        `<button class="action-btn ${isBlacklisted(channel.channelId) ? 'btn-warning' : 'btn-danger'}" 
+                            data-channelid="${channel.channelId}"
+                            onclick="toggleBlacklist('${channel.channelId}')">
+                            <i class="fas fa-ban"></i> ${isBlacklisted(channel.channelId) ? 'Unblacklist' : 'Blacklist'}
+                        </button>` : ''}
                     </td>
                 `;
                 
@@ -2271,6 +2419,15 @@
                     deleteChannelById(userId, channelId);
                 });
             });
+        }
+
+        // Toggle blacklist status for a channel
+        function toggleBlacklist(channelId) {
+            if (isBlacklisted(channelId)) {
+                removeFromBlacklist(channelId);
+            } else {
+                addToBlacklist(channelId);
+            }
         }
 
         // Render semua user di tabel (developer only)
@@ -2332,9 +2489,15 @@
                 return;
             }
             
+            // Cek jika channel di-blacklist
+            if (isBlacklisted(newChannelId)) {
+                showError('Channel ini masuk dalam daftar blacklist dan tidak dapat ditambahkan');
+                return;
+            }
+            
             // Cek maksimum channel berdasarkan role
             const currentCount = userChannels.length;
-            const maxAllowed = roleLimits[currentRole] || 3;
+            const maxAllowed = roleLimits[currentRole] || 2;
             
             if (currentCount >= maxAllowed) {
                 showError(`Anda telah mencapai limit maksimum ${maxAllowed} channel`);
@@ -2510,7 +2673,49 @@
         function resetSystem() {
             database.ref().remove()
                 .then(() => {
+                    // Set default values after reset
+                    const defaultCredentials = {
+                        developer: {
+                            username: "admin",
+                            password: "admin123",
+                            anime: "naruto"
+                        },
+                        vip: {
+                            username: "vip",
+                            password: "vip123"
+                        },
+                        nakama: {
+                            username: "nakama",
+                            password: "nakama123"
+                        },
+                        moderator: {
+                            username: "moderator",
+                            password: "mod123"
+                        },
+                        member: {
+                            token: "member123"
+                        }
+                    };
+                    
+                    const defaultLimits = {
+                        member: 2,
+                        vip: 15,
+                        nakama: 10,
+                        moderator: 5,
+                        developer: Infinity
+                    };
+                    
+                    return Promise.all([
+                        database.ref('credentials').set(defaultCredentials),
+                        database.ref('settings/roleLimits').set(defaultLimits),
+                        database.ref('settings/maintenanceMode').set(false),
+                        database.ref('blacklist').set([])
+                    ]);
+                })
+                .then(() => {
                     showSuccess('Sistem berhasil direset ke pengaturan awal!');
+                    // Reload the page to reflect changes
+                    setTimeout(() => location.reload(), 1500);
                 })
                 .catch(error => {
                     showError('Gagal mereset sistem: ' + error.message);
@@ -2554,6 +2759,8 @@
                             database.ref().set(data)
                                 .then(() => {
                                     showSuccess('Data berhasil diimpor!');
+                                    // Reload the page to reflect changes
+                                    setTimeout(() => location.reload(), 1500);
                                 })
                                 .catch(error => {
                                     showError('Gagal mengimpor data: ' + error.message);
